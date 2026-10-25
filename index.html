@@ -560,6 +560,16 @@ body.boot .rail .nav,body.boot .tabbar,body.boot .tb-actions,body.boot .fab{visi
 /* Hamkorlik: compact figures on phones so the list stays in view */
 @media (max-width:520px){.kpis.k2{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.kpis.k2 .kpi{padding:12px 13px;gap:4px}.kpis.k2 .kpi .k{font-size:10.5px;letter-spacing:.05em}.kpis.k2 .kpi .v{font-size:18px}.kpis.k2 .kpi .v small{font-size:11px}.kpis.k2 .kpi .s{font-size:11.5px}}
 
+/* muammo (issues) */
+.issues{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.issue{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border-radius:12px;background:color-mix(in srgb,var(--warn,#B07228) 14%,transparent);font-size:13.5px}
+.issue[data-act]{cursor:pointer}
+.issue .ix{flex:none;margin-top:1px;color:var(--warn,#B07228)}
+.issue .im{flex:1;min-width:0;overflow-wrap:anywhere}
+.issue .is{font-size:12px;opacity:.7;margin-top:2px}
+.issue.done{background:var(--surface-2,rgba(128,128,128,.1));opacity:.8}
+.issue.done .ix{color:var(--accent)}
+
 </style>
 </head>
 <body>
@@ -1606,7 +1616,8 @@ function itemBoxHTML(o, it) {
     <div class="ibox-h"><span class="pill st ${ph ? ph.cls : 's5'}">${esc(it.type || 'Buyum')}</span><div class="ibox-t">${esc(it.title || '')}${it.det ? ` <span class="muted" style="font-weight:500">· ${fmt(it.det)} ta detal</span>` : ''}</div>${it.joy === 'uy' ? '<span class="pill oak">mijoz uyida yig‘iladi</span>' : ''}${wk ? '' : `<span class="ibox-p">${N(it.price) ? som(it.price) : `<span class="muted" style="font-weight:500">${isJobRec(o) ? 'usta puli yo‘q' : 'narxsiz'}</span>`}</span>`}</div>
     <div class="prog"><i style="width:${pct}%"></i></div>
     <div class="split"><span class="ink2" style="font-size:13.5px;min-width:0">${info.n}/${info.total} ish · ${info.cur ? `${ph.name}: <b>${esc(info.cur.short)}</b>` : '<b class="good-t">hammasi bajarildi</b>'}</span>
-      <div class="gap">${info.cur && canEdit ? `<button class="btn sm soft" data-act="stepDone" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w>${icon('check', 'sm')}${esc(info.cur.short)}</button>` : ''}${live && !wk ? `<button class="btn sm ghost icon" data-act="editItem" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w aria-label="Buyumni tahrirlash">${icon('edit', 'sm')}</button>` : ''}</div></div>
+      <div class="gap">${info.cur && canEdit ? `<button class="btn sm soft" data-act="stepDone" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w>${icon('check', 'sm')}${esc(info.cur.short)}</button>` : ''}${live && Store.canWrite ? issueBtn(o, it) : ''}${live && !wk ? `<button class="btn sm ghost icon" data-act="editItem" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w aria-label="Buyumni tahrirlash">${icon('edit', 'sm')}</button>` : ''}</div></div>
+    ${itemIssuesHTML(o, it)}
     <details class="steps" data-key="${esc(key)}" ${open ? 'open' : ''}><summary>Ishlar ro‘yxati · ${info.total} ta</summary>${stepListHTML(o, it, info, canEdit)}</details>
   </div>`;
 }
@@ -1665,7 +1676,7 @@ function orderDetail(id) {
   else if ((o.smeta || []).some((l) => l.mid && stockOf(l.mid) > 0) && !['bekor', 'olchov', 'ornatildi'].includes(o.stage)) issueBox = `<div class="split"><span class="muted" style="font-size:13px">Smetadagi ba’zi materiallar omborda bor.</span><button class="btn sm" data-act="issueOrder" data-id="${id}" data-w>${icon('out', 'sm')}Ombordan berish</button></div>`;
   const prof = price - cost;
   const smeta = `<div class="block"><h4>${icon('ruler', 'sm')}Smeta (reja)<span class="act"><button class="btn sm" data-act="editSmeta" data-id="${id}" data-w>${icon('edit', 'sm')}${hasSmeta ? 'Tahrirlash' : 'Smeta tuzish'}</button></span></h4>
-    ${hasSmeta ? `<div class="tbl-wrap"><table class="tbl compact"><thead><tr><th>Nomi</th><th class="r">Miqdor</th><th class="r hide-sm">Narx</th><th class="r">Summa</th></tr></thead><tbody>${smRows}</tbody><tfoot><tr><td>Tannarx</td><td></td><td class="hide-sm"></td><td class="r">${fmt(cost)}</td></tr></tfoot></table></div>
+    ${hasSmeta ? `<div class="tbl-wrap"><table class="tbl compact"><thead><tr><th>Nomi</th><th class="r">Miqdor</th><th class="r">Narx</th><th class="r">Summa</th></tr></thead><tbody>${smRows}</tbody><tfoot><tr><td>Tannarx</td><td></td><td class="hide-sm"></td><td class="r">${fmt(cost)}</td></tr></tfoot></table></div>
       <div class="trio"><div><div class="k">Tannarx (reja)</div><div class="v">${fmt(cost)}</div></div><div><div class="k">Rejadagi foyda</div><div class="v ${prof >= 0 ? 'good-t' : 'bad-t'}">${fmt(prof)}</div></div><div><div class="k">Foyda ulushi</div><div class="v">${price > 0 ? Math.round((prof / price) * 100) + '%' : '—'}</div></div></div>${issueBox}`
       : `<div class="callout info">${icon('ruler')}<div class="grow">Smeta tuzilmagan. Detallar, furnitura va usluga narxlarini kiriting — tannarx va tavsiya narx o‘zi hisoblanadi.</div></div>`}
     ${issued.length ? `<details class="steps"><summary>Ombordan berilganlar (${issued.length})</summary><div class="rows">${issued.map((mv) => { const m = M.material.get(mv.mid); return `<button class="rowi" data-act="openMove" data-id="${mv.id}"><div class="rm"><div class="rt">${esc(m ? m.name : 'Material')}</div><div class="rs">${dmy(mv.date)} · ${MOVE_KINDS[mv.kind] || ''}</div></div><div class="rv">${fq(mv.qty)} ${esc(m ? m.unit : '')}</div></button>`; }).join('')}</div></details>` : ''}</div>`;
@@ -1708,7 +1719,7 @@ Views.sex = () => {
   const cols = PHASE_IDS.map((ph) => ({ name: PHASES[ph].name, hint: PHASES[ph].hint, cls: PHASES[ph].cls, list: all.filter((x) => x.phase === ph) }))
     .concat([{ name: 'Tayyor', hint: 'Yetkazish va o‘rnatishga', cls: 's5', list: all.filter((x) => x.phase === 'tayyor') }]);
   const lateN = new Set(all.filter((x) => x.o.deadline && x.o.deadline < M.today).map((x) => x.o.id)).size;
-  const head = `<div class="sumrow">${cols.map((c) => `<div><div class="k">${c.name}</div><div class="v">${c.list.length}</div></div>`).join('')}<div><div class="k">Kechikayotgan ish</div><div class="v ${lateN ? 'bad-t' : ''}">${lateN}</div></div></div>`;
+  const head = `<div class="sumrow">${cols.map((c) => `<div><div class="k">${c.name}</div><div class="v">${c.list.length}</div></div>`).join('')}<div><div class="k">Kechikayotgan ish</div><div class="v ${lateN ? 'bad-t' : ''}">${lateN}</div></div>${openIssueCount() ? `<div><div class="k">Ochiq muammo</div><div class="v warn-t">${openIssueCount()}</div></div>` : ''}</div>`;
   if (!all.length) return roNote() + head + emptyBox('saw', 'Hozircha ishlab chiqarishda buyum yo‘q', 'Buyurtma «Qabul qilindi» bo‘lgach, uning har bir buyumi shu yerga tushadi: hisob-kitob → usluga va Labo → sex → mijoz uyi. Har bir ish bajarilganda bitta tugma bilan belgilaysiz.', '<button class="btn" data-act="go" data-v="buyurtmalar">Buyurtmalarga o‘tish</button>');
   const card = ({ o, it, info, job }) => {
     const pct = info.total ? Math.round((info.n / info.total) * 100) : 0, who = unitWho(o);
@@ -1722,7 +1733,8 @@ Views.sex = () => {
       ${(it.title && who) || job ? `<div class="pr">${job ? '<span class="tag" style="margin:0 6px 0 0">Hamkorlik</span>' : ''}${it.title && who ? esc(it.title) : ''}</div>` : ''}
       <div class="prog"><i style="width:${pct}%"></i></div>
       <div class="pr">${info.n}/${info.total} ish${it.joy === 'uy' ? ' · uyda yig‘iladi' : ''}</div>
-      ${btn}</div>`;
+      ${openIssuesIn(o, it) ? `<div class="pr warn-t">${icon('alert', 'sm')} ${openIssuesIn(o, it)} ta muammo</div>` : ''}
+      <div class="gap" style="margin-top:8px;flex-wrap:wrap">${btn}${Store.canWrite && ['kelishildi', 'ishlab', 'tayyor'].includes(o.stage) ? issueBtn(o, it) : ''}</div></div>`;
   };
   return roNote() + head + '<p class="muted">Har bir buyum o‘z ishlar ro‘yxati bilan yuradi. Tugmani bossangiz, o‘sha ish bajarildi deb belgilanadi. To‘liq ro‘yxat buyurtma ichida.</p>' +
     `<div class="board" data-keep="sex">${cols.map((c) => `<div class="col ${c.cls}"><div class="col-h"><span class="bar"></span><b>${c.name}</b><span class="c">${c.list.length}</span></div><div class="muted" style="font-size:12.5px;padding:0 6px">${c.hint}</div>${c.list.length ? c.list.map(card).join('') : '<div class="empty-col">Bo‘sh</div>'}</div>`).join('')}</div>`;
@@ -1734,7 +1746,7 @@ Views.ombor = () => {
   if (!Store.ready) return skeleton();
   const st = UI.ombor, D = Store.data;
   const tabs = [['materiallar', 'Materiallar'], ['kirimlar', 'Kirimlar'], ['harakatlar', 'Chiqimlar'], ['taminot', 'Ta’minotchilar']];
-  const btns = { materiallar: `<button class="btn" data-act="newMaterial" data-w>${icon('plus', 'sm')}Material</button><button class="btn" data-act="newMove" data-w>${icon('out', 'sm')}Chiqim</button><button class="btn primary" data-act="newPurchase" data-w>${icon('in', 'sm')}Kirim (xarid)</button>`,
+  const btns = { materiallar: `<button class="btn" data-act="starterMats" data-w>${icon('box', 'sm')}Tayyor ro‘yxat</button><button class="btn" data-act="newMaterial" data-w>${icon('plus', 'sm')}Material</button><button class="btn" data-act="newMove" data-w>${icon('out', 'sm')}Chiqim</button><button class="btn primary" data-act="newPurchase" data-w>${icon('in', 'sm')}Kirim (xarid)</button>`,
     kirimlar: `<button class="btn primary" data-act="newPurchase" data-w>${icon('in', 'sm')}Kirim (xarid)</button>`,
     harakatlar: `<button class="btn primary" data-act="newMove" data-w>${icon('out', 'sm')}Chiqim qilish</button>`,
     taminot: `<button class="btn primary" data-act="newSupplier" data-w>${icon('plus', 'sm')}Ta’minotchi</button>` };
@@ -1745,7 +1757,7 @@ Views.ombor = () => {
     const value = sum(mats, (m) => Math.max(0, stockOf(m.id)) * N(m.price));
     const low = mats.filter(isLow);
     html += `<div class="sumrow"><div><div class="k">Ombordagi materiallar qiymati</div><div class="v">${som(value)}</div></div><div><div class="k">Material turlari</div><div class="v">${mats.length}</div></div><div><div class="k">Kam qolgan</div><div class="v ${low.length ? 'warn-t' : ''}">${low.length}</div></div></div>`;
-    if (!mats.length) return html + emptyBox('box', 'Materiallar ro‘yxati bo‘sh', 'LDSP, MDF, kromka, furnitura va boshqa materiallarni narxi bilan kiriting. Smeta va ombor qoldig‘i shulardan hisoblanadi.', `<button class="btn primary" data-act="newMaterial" data-w>${icon('plus', 'sm')}Material qo‘shish</button>`);
+    if (!mats.length) return html + emptyBox('box', 'Materiallar ro‘yxati bo‘sh', 'LDSP, MDF, kromka, furnitura va boshqa materiallarni narxi bilan kiriting. Smeta va ombor qoldig‘i shulardan hisoblanadi.', `<button class="btn primary" data-act="starterMats" data-w>${icon('box', 'sm')}Tayyor ro‘yxatni qo‘shish</button><button class="btn" data-act="newMaterial" data-w>${icon('plus', 'sm')}Bittalab qo‘shish</button>`);
     const cats = [...new Set(mats.map((m) => m.cat || 'Boshqa'))];
     let list = mats;
     const q = st.q.trim().toLowerCase();
@@ -1753,7 +1765,7 @@ Views.ombor = () => {
     if (st.cat) list = list.filter((m) => (m.cat || 'Boshqa') === st.cat);
     if (st.low) list = list.filter(isLow);
     html += `<div class="toolbar">${searchBox('mq', 'ombQ', st.q, 'Material nomi')}</div><div class="chips scroll"><button class="chip ${!st.cat && !st.low ? 'on' : ''}" data-act="ombCat" data-c="">Hammasi</button><button class="chip ${st.low ? 'on' : ''}" data-act="ombLow">Kam qolgan<span class="c">${low.length}</span></button>${cats.map((c) => `<button class="chip ${st.cat === c ? 'on' : ''}" data-act="ombCat" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>`;
-    html += list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Material</th><th class="r">Qoldiq</th><th class="r hide-sm">Minimal</th><th class="r hide-sm">Narx</th><th class="r hide-md">Qiymati</th></tr></thead><tbody>${list.map((m) => { const s = stockOf(m.id); return `<tr data-act="openMaterial" data-id="${m.id}"><td><div class="t1">${esc(m.name)}</div><div class="t2">${esc(m.cat || '')}</div></td><td class="r nowrap"><b class="${s < 0 ? 'bad-t' : ''}">${fq(s)}</b> <span class="muted">${esc(m.unit || '')}</span>${isLow(m) ? ' <span class="pill warn">kam</span>' : ''}</td><td class="r hide-sm muted">${N(m.min) ? fq(m.min) : '—'}</td><td class="r hide-sm">${fmt(m.price)}</td><td class="r hide-md">${fmt(Math.max(0, s) * N(m.price))}</td></tr>`; }).join('')}</tbody></table></div>` : emptyBox('search', 'Topilmadi', 'Boshqa nom bilan qidirib ko‘ring.');
+    html += list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Material</th><th class="r">Qoldiq</th><th class="r hide-sm">Minimal</th><th class="r hide-sm">Narx</th><th class="r hide-md">Qiymati</th></tr></thead><tbody>${list.map((m) => { const s = stockOf(m.id); return `<tr data-act="openMaterial" data-id="${m.id}"><td><div class="t1">${esc(m.name)}</div><div class="t2">${esc(m.cat || '')}</div></td><td class="r nowrap"><b class="${s < 0 ? 'bad-t' : ''}">${fq(s)}</b> <span class="muted">${esc(m.unit || '')}</span>${isLow(m) ? ' <span class="pill warn">kam</span>' : ''}</td><td class="r hide-sm muted">${N(m.min) ? fq(m.min) : '—'}</td><td class="r nowrap">${Store.canWrite ? `<button class="btn sm ${N(m.price) ? 'ghost' : 'soft'}" data-act="setPrice" data-id="${m.id}" data-w>${N(m.price) ? fmt(m.price) : 'narx yo‘q'}</button>` : fmt(m.price)}</td><td class="r hide-md">${fmt(Math.max(0, s) * N(m.price))}</td></tr>`; }).join('')}</tbody></table></div>` : emptyBox('search', 'Topilmadi', 'Boshqa nom bilan qidirib ko‘ring.');
   } else if (st.tab === 'kirimlar') {
     const list = D.purchases.slice().sort(by((p) => (p.date || '') + (p.at || ''), -1));
     if (!list.length) return html + emptyBox('in', 'Hali kirim yo‘q', 'Ta’minotchidan material olganingizda kirim qiling: ombor qoldig‘i oshadi, to‘lanmagan qismi ta’minotchi qarziga yoziladi.', `<button class="btn primary" data-act="newPurchase" data-w>${icon('in', 'sm')}Kirim qilish</button>`);
@@ -1785,10 +1797,11 @@ function materialDetail(id) {
   ins.sort(by((x) => (x.date || '') + (x.at || ''), -1));
   const body = `<div class="trio"><div><div class="k">Qoldiq</div><div class="v ${s < 0 ? 'bad-t' : ''}">${fq(s)} <small class="muted">${esc(m.unit || '')}</small></div></div><div><div class="k">Narx (1 ${esc(m.unit || 'dona')})</div><div class="v">${fmt(m.price)}</div></div><div><div class="k">Qiymati</div><div class="v">${fmt(Math.max(0, s) * N(m.price))}</div></div></div>
     ${isLow(m) ? `<div class="callout warn">${icon('alert')}<div class="grow">Kam qoldi: minimal ${fq(m.min)} ${esc(m.unit || '')}. Buyurtma berish vaqti.</div><button class="btn sm" data-act="newPurchase" data-mid="${id}" data-w>Kirim qilish</button></div>` : ''}
-    <dl class="kv"><dt>Turi</dt><dd>${esc(m.cat || '—')}</dd><dt>O‘lchov birligi</dt><dd>${esc(m.unit || '—')}</dd><dt>Minimal qoldiq</dt><dd>${N(m.min) ? fq(m.min) + ' ' + esc(m.unit || '') : 'belgilanmagan'}</dd>${m.note ? `<dt>Izoh</dt><dd>${esc(m.note)}</dd>` : ''}</dl>
+    <dl class="kv"><dt>Turi</dt><dd>${esc(m.cat || '—')}</dd><dt>O‘lchov birligi</dt><dd>${esc(m.unit || '—')}</dd>${m.priceAt ? `<dt>Narx yangilangan</dt><dd>${dmy(m.priceAt)}</dd>` : ''}<dt>Minimal qoldiq</dt><dd>${N(m.min) ? fq(m.min) + ' ' + esc(m.unit || '') : 'belgilanmagan'}</dd>${m.note ? `<dt>Izoh</dt><dd>${esc(m.note)}</dd>` : ''}</dl>
     <div class="block"><h4>${icon('swap', 'sm')}Harakatlar tarixi</h4>${ins.length ? `<div class="rows">${ins.slice(0, 60).map((x) => `<button class="rowi" data-act="${x.act}" data-id="${x.id}"><div class="av ${x.qty >= 0 ? 'in' : 'out'}">${icon(x.qty >= 0 ? 'in' : 'out', 'sm')}</div><div class="rm"><div class="rt">${esc(x.t)}</div><div class="rs">${dmy(x.date)}${x.price ? ' · ' + fmt(x.price) + ' so‘mdan' : ''}</div></div><div class="rv ${x.qty >= 0 ? 'good-t' : 'bad-t'}">${x.qty > 0 ? '+' : ''}${fq(x.qty)}</div></button>`).join('')}</div>` : '<p class="muted">Hali harakat yo‘q.</p>'}</div>`;
   const used = ins.length > 0 || Store.data.orders.some((o) => (o.smeta || []).some((l) => l.mid === id));
   const foot = `<div class="left"><button class="btn" data-act="adjustStock" data-id="${id}" data-w>${icon('ruler', 'sm')}Qoldiqni to‘g‘rilash</button></div>
+    <button class="btn" data-act="setPrice" data-id="${id}" data-w>Narxni o‘zgartirish</button>
     <button class="btn" data-act="newMove" data-mid="${id}" data-w>${icon('out', 'sm')}Chiqim</button>
     <button class="btn" data-act="editMaterial" data-id="${id}" data-w>${icon('edit', 'sm')}Tahrirlash</button>
     ${!used ? `<button class="btn danger icon" data-act="deleteMaterial" data-id="${id}" data-w aria-label="O‘chirish">${icon('trash', 'sm')}</button>` : ''}`;
@@ -1999,6 +2012,7 @@ Views.hisobot = () => {
       <section class="card"><div class="card-h"><h3>Xarajatlar tarkibi</h3></div><div class="card-b">${catRows.length ? hbars(catRows) : '<p class="muted">Bu davrda xarajat yo‘q.</p>'}</div></section>
     </div>
     <section class="card"><div class="card-h"><h3>Buyurtmalar bo‘yicha foyda</h3><span class="muted">${done.length} ta topshirilgan</span></div><div class="card-b">${done.length ? `<div class="tbl-wrap"><table class="tbl compact"><thead><tr><th>№</th><th>Mijoz</th><th class="r">Narx</th><th class="r hide-sm">Sarflandi</th><th class="r">Foyda</th><th class="r hide-sm">%</th></tr></thead><tbody>${done.map((o) => `<tr data-act="openOrder" data-id="${o.id}"><td class="tnum">№${o.no}</td><td><div class="t1">${esc(oClient(o).name)}</div><div class="t2">${esc(itemsOf(o).map((it) => it.type).join(', '))} · ${dmy(o.doneAt)}</div></td><td class="r">${fmt(o.price)}</td><td class="r hide-sm">${fmt(oCostBasis(o))}${oEstimated(o) ? '<div class="t2">smeta bo‘yicha</div>' : ''}</td><td class="r ${oProfit(o) < 0 ? 'bad-t' : 'good-t'}">${fmt(oProfit(o))}</td><td class="r hide-sm">${N(o.price) ? Math.round((oProfit(o) / N(o.price)) * 100) + '%' : '—'}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="2">Jami</td><td class="r">${fmt(sum(done, (o) => N(o.price)))}</td><td class="r hide-sm">${fmt(sum(done, oCostBasis))}</td><td class="r">${fmt(prof)}</td><td class="r hide-sm">${sum(done, (o) => N(o.price)) ? Math.round((prof / sum(done, (o) => N(o.price))) * 100) + '%' : ''}</td></tr></tfoot></table></div><p class="muted">Sarflandi — buyurtmaga yozilgan xarajatlar: usluga, Labo, furnitura, ishchilar haqi va ombordan berilgan materiallar. Hech narsa yozilmagan buyurtmada smeta olinadi.</p>` : '<p class="muted">Bu davrda topshirilgan buyurtma yo‘q.</p>'}</div></section>
+    ${issuesReportHTML()}
     ${D.jobs.length ? `<section class="card"><div class="card-h"><h3>Hamkorlik ishlari</h3><span class="muted">${jDone.length} ta topshirilgan</span></div><div class="card-b">${jDone.length ? `<div class="tbl-wrap"><table class="tbl compact"><thead><tr><th>№</th><th>Ish beruvchi</th><th class="r">Usta puli</th><th class="r hide-sm">O‘zimdan xarajat</th><th class="r">Sof foyda</th></tr></thead><tbody>${jDone.map((j) => `<tr data-act="openJob" data-id="${j.id}"><td class="tnum nowrap">${jNo(j)}</td><td><div class="t1">${esc(jPartner(j).name)}</div><div class="t2">${esc(oWhat(j))}</div></td><td class="r">${fmt(j.fee)}</td><td class="r hide-sm">${fmt(jOwn(j))}</td><td class="r ${jProfit(j) < 0 ? 'bad-t' : 'good-t'}">${fmt(jProfit(j))}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="2">Jami</td><td class="r">${fmt(sum(jDone, (j) => N(j.fee)))}</td><td class="r hide-sm">${fmt(sum(jDone, jOwn))}</td><td class="r">${fmt(sum(jDone, jProfit))}</td></tr></tfoot></table></div>` : '<p class="muted">Bu davrda topshirilgan hamkorlik ishi yo‘q.</p>'}</div></section>` : ''}
     <div class="cols2">
       <section class="card"><div class="card-h"><h3>Qarzlar</h3></div><div class="card-b"><div class="rows">
@@ -3867,6 +3881,137 @@ A.jobExpense = (d) => {
   });
 };
 
+/* ================= Muammo: where does the time go ================= */
+const ISSUE_CATS = ['Detal esdan chiqdi / yetishmadi', 'Material yetmadi', 'Usluga kechikdi', 'Xato / brak', 'Mijoz kechiktirdi', 'Asbob yoki uskuna', 'Yetkazish / yo‘l', 'Boshqa'];
+const issuesOf = (o) => (Array.isArray(o.issues) ? o.issues : []);
+const issueHours = (i) => {
+  if (i.hours > 0) return N(i.hours);
+  if (i.res && i.res.hours > 0) return N(i.res.hours);
+  if (i.res && i.res.at && i.at) return Math.round(((new Date(i.res.at) - new Date(i.at)) / 36e5) * 10) / 10;
+  return null;
+};
+const fmtH = (h) => (h == null ? '—' : h >= 24 ? `${(Math.round((h / 24) * 10) / 10).toString().replace('.', ',')} kun` : `${(Math.round(h * 10) / 10).toString().replace('.', ',')} soat`);
+const allIssues = () => {
+  const out = [];
+  for (const o of Store.data.orders.concat(Store.data.jobs)) for (const i of issuesOf(o)) out.push({ o, i });
+  return out;
+};
+const openIssueCount = () => allIssues().filter((x) => !x.i.res).length;
+
+function issueLineHTML(o, i) {
+  const who = i.byName ? ` · ${esc(i.byName)}` : '';
+  if (i.res) return `<div class="issue done"><span class="ix">${icon('check', 'sm')}</span><div class="im"><b>${esc(i.cat)}</b>${i.stepName ? ' · ' + esc(i.stepName) : ''}${i.note ? ' · ' + esc(i.note) : ''}<div class="is">${dmy(i.d)}${who} · hal bo‘ldi · ${fmtH(issueHours(i))}</div></div></div>`;
+  return `<div class="issue"><span class="ix">${icon('alert', 'sm')}</span><div class="im"><b>${esc(i.cat)}</b>${i.stepName ? ' · ' + esc(i.stepName) : ''}${i.note ? ' · ' + esc(i.note) : ''}<div class="is">${dmy(i.d)}${who}</div></div>${Store.canWrite ? `<button class="btn sm soft" data-act="resolveIssue" data-id="${o.id}"${kAttr(o)} data-iid="${esc(i.id)}" data-w>Hal bo‘ldi</button>` : ''}</div>`;
+}
+function itemIssuesHTML(o, it) {
+  const list = issuesOf(o).filter((i) => i.item === it.id);
+  if (!list.length) return '';
+  const open = list.filter((i) => !i.res), done = list.filter((i) => i.res).slice(-3);
+  return `<div class="issues">${open.concat(done).map((i) => issueLineHTML(o, i)).join('')}</div>`;
+}
+const issueBtn = (o, it, cls = 'btn sm ghost') => `<button class="${cls}" data-act="newIssue" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w>${icon('alert', 'sm')}Muammo</button>`;
+
+A.newIssue = (d) => {
+  const o = unitGet(d); if (!o || !needWrite()) return;
+  const it0 = itemsOf(o).find((x) => x.id === d.item) || itemsOf(o)[0];
+  const info = itemInfo(o, it0), steps = info.steps;
+  openModal({
+    title: 'Muammo', body: `<p class="ink2">${esc(unitLabel(o))} · ${esc(itemLabel(it0))}</p>
+      <div class="fgrid">
+        ${field('Qaysi ishda?', selectInp('step', steps.map((s) => [s.id, s.name]), info.cur ? info.cur.id : '', '— umumiy —'), { full: true })}
+        ${field('Nima bo‘ldi?', selectInp('cat', ISSUE_CATS.map((c) => [c, c]), ISSUE_CATS[0]), { full: true, req: true })}
+        ${field('Izoh', textInp('note', '', 'Masalan: 1 ta yon detal esdan chiqibdi'), { full: true })}
+        ${field('Necha soat ketdi?', numInp('hours', '', { dec: true, suf: 'soat' }), { hint: 'Bilmasangiz bo‘sh qoldiring. «Hal bo‘ldi» bosilganda vaqt o‘zi hisoblanadi.' })}
+        ${field('Sana', dateInp('date', M.today))}
+      </div>`,
+    acts: `<button type="button" class="btn" data-act="closeTop">Bekor qilish</button><button type="submit" class="btn primary">${icon('alert', 'sm')}Muammoni yozish</button>`,
+    async onSubmit(f) {
+      const st = steps.find((s) => s.id === val(f, 'step'));
+      return guard(async () => {
+        const rec = cloneUnit(o);
+        const h = numVal(f, 'hours');
+        rec.issues = issuesOf(rec).concat([{ id: uid(), item: it0.id, itemType: it0.type, step: st ? st.id : null, stepName: st ? st.short || st.name : '', cat: val(f, 'cat'), note: String(val(f, 'note')).trim(), hours: h > 0 ? h : null, d: val(f, 'date') || M.today, at: new Date().toISOString(), by: Store.me || null, byName: Store.myName || '', res: null }]);
+        addHist(rec, `Muammo: ${val(f, 'cat')}${st ? ' (' + (st.short || st.name) + ')' : ''}`);
+        await save(unitCol(o), rec);
+        return true;
+      }, 'Muammo yozildi');
+    },
+  });
+};
+A.resolveIssue = (d) => {
+  const o = unitGet(d); if (!o || !needWrite()) return;
+  const iss = issuesOf(o).find((x) => x.id === d.iid); if (!iss) return;
+  openModal({
+    title: 'Muammo hal bo‘ldimi?', body: `<p class="ink2"><b>${esc(iss.cat)}</b>${iss.stepName ? ' · ' + esc(iss.stepName) : ''}${iss.note ? '<br>' + esc(iss.note) : ''}</p>
+      <div class="fgrid">${field('Necha soat ketdi?', numInp('hours', iss.hours || '', { dec: true, suf: 'soat' }), { hint: 'Bo‘sh qoldirsangiz, yozilgan vaqtdan hozirgacha hisoblanadi.', full: true })}</div>`,
+    acts: `<button type="button" class="btn" data-act="closeTop">Bekor qilish</button><button type="submit" class="btn primary">${icon('check', 'sm')}Hal bo‘ldi</button>`,
+    async onSubmit(f) {
+      return guard(async () => {
+        const rec = cloneUnit(o), h = numVal(f, 'hours');
+        rec.issues = issuesOf(rec).map((x) => (x.id === iss.id ? { ...x, res: { at: new Date().toISOString(), by: Store.me || null, byName: Store.myName || '', hours: h > 0 ? h : null } } : x));
+        addHist(rec, `Muammo hal bo‘ldi: ${iss.cat}`);
+        await save(unitCol(o), rec);
+        return true;
+      }, 'Hal bo‘ldi deb belgilandi');
+    },
+  });
+};
+
+/* owner report: where the time goes */
+function issuesReportHTML() {
+  const all = allIssues();
+  if (!all.length) return `<section class="card"><div class="card-h"><h3>Muammolar: vaqt qayerda ketyapti</h3></div><div class="card-b"><p class="muted">Hali muammo yozilmagan. Ishchilar va siz har bir buyum ishida «Muammo» tugmasini bosib yozasiz, shunda bu yerda qaysi ish va sababda ko‘p vaqt ketgani ko‘rinadi.</p></div></section>`;
+  const group = (keyf) => {
+    const g = new Map();
+    for (const { i } of all) { const k = keyf(i) || 'Umumiy'; const r = g.get(k) || { k, n: 0, open: 0, h: 0, hn: 0 }; r.n++; if (!i.res) r.open++; const h = issueHours(i); if (h != null) { r.h += h; r.hn++; } g.set(k, r); }
+    return [...g.values()].sort(by((r) => -r.h * 1000 - r.n));
+  };
+  const rows = (arr) => `<div class="tbl-wrap"><table class="tbl compact"><thead><tr><th></th><th class="r">Marta</th><th class="r">Ochiq</th><th class="r">Ketgan vaqt</th></tr></thead><tbody>${arr.map((r) => `<tr><td>${esc(r.k)}</td><td class="r tnum">${r.n}</td><td class="r tnum ${r.open ? 'warn-t' : ''}">${r.open || '—'}</td><td class="r tnum">${r.hn ? fmtH(r.h) : '—'}</td></tr>`).join('')}</tbody></table></div>`;
+  const totalH = sum(all, ({ i }) => issueHours(i) || 0), openN = all.filter((x) => !x.i.res).length;
+  const last = all.slice().sort(by((x) => x.i.at || '', -1)).slice(0, 8);
+  return `<section class="card"><div class="card-h"><h3>Muammolar: vaqt qayerda ketyapti</h3><span class="muted">${all.length} ta · ${openN} ochiq · ${fmtH(totalH)}</span></div><div class="card-b stack">
+    <div><div class="lbl">Sabab bo‘yicha</div>${rows(group((i) => i.cat))}</div>
+    <div><div class="lbl">Qaysi ishda</div>${rows(group((i) => i.stepName))}</div>
+    <div><div class="lbl">Oxirgilari</div><div class="issues">${last.map(({ o, i }) => `<div class="issue ${i.res ? 'done' : ''}" data-act="${isJobRec(o) ? 'openJob' : 'openOrder'}" data-id="${o.id}" role="button" tabindex="0"><span class="ix">${icon(i.res ? 'check' : 'alert', 'sm')}</span><div class="im"><b>${unitNo(o)}</b> · ${esc(i.cat)}${i.stepName ? ' · ' + esc(i.stepName) : ''}${i.note ? ' · ' + esc(i.note) : ''}<div class="is">${dmy(i.d)}${i.byName ? ' · ' + esc(i.byName) : ''}${i.res ? ' · ' + fmtH(issueHours(i)) : ' · ochiq'}</div></div></div>`).join('')}</div></div>
+  </div></section>`;
+}
+const openIssuesIn = (o, it) => issuesOf(o).filter((i) => i.item === it.id && !i.res).length;
+
+/* ================= Xomashyo bazasi: tayyor ro'yxat va narxni tez o'zgartirish ================= */
+const STARTER_MATS = [
+  ['LDSP 16 mm Oq', 'LDSP', 'list'], ['LDSP 16 mm Venge', 'LDSP', 'list'], ['LDSP 16 mm Dub sonoma', 'LDSP', 'list'], ['LDSP 16 mm Orex', 'LDSP', 'list'], ['LDSP 16 mm Kulrang', 'LDSP', 'list'],
+  ['LDSP 18 mm Oq', 'LDSP', 'list'], ['LDSP 18 mm Venge', 'LDSP', 'list'], ['LDSP 18 mm Dub sonoma', 'LDSP', 'list'],
+  ['MDF 16 mm', 'MDF', 'list'], ['MDF 18 mm', 'MDF', 'list'], ['MDF 10 mm', 'MDF', 'list'],
+  ['HDF orqa devor 3 mm Oq', 'HDF / DVP', 'list'], ['DVP orqa devor 3 mm', 'HDF / DVP', 'list'],
+  ['Akril fasad (oq, yaltiroq)', 'Akril / fasad', 'm²'], ['Akril fasad (rangli)', 'Akril / fasad', 'm²'], ['MDF fasad (emal)', 'Akril / fasad', 'm²'], ['Alyuminiy ramka fasad', 'Akril / fasad', 'm²'],
+  ['Kromka 0,4 mm Oq', 'Kromka', 'p/m'], ['Kromka 2 mm Oq', 'Kromka', 'p/m'], ['Kromka 0,4 mm Venge', 'Kromka', 'p/m'], ['Kromka 2 mm Venge', 'Kromka', 'p/m'], ['Kromka 2 mm Dub sonoma', 'Kromka', 'p/m'],
+  ['Petlya (oddiy)', 'Furnitura', 'dona'], ['Petlya yumshoq yopiladigan (Blum turi)', 'Furnitura', 'dona'], ['Yo‘naltiruvchi (tandem) 450 mm', 'Furnitura', 'kompl'], ['Yo‘naltiruvchi (tandem) 500 mm', 'Furnitura', 'kompl'],
+  ['Ruchka', 'Furnitura', 'dona'], ['Oyoq (tayanch)', 'Furnitura', 'dona'], ['Gazlift (ko‘taruvchi)', 'Furnitura', 'dona'], ['Shtanga (kiyim osish)', 'Furnitura', 'm'], ['Savat / setka', 'Furnitura', 'dona'], ['Karusel / burchak mexanizmi', 'Furnitura', 'kompl'], ['Mokhnatka / LED chiroq', 'Furnitura', 'dona'],
+  ['Konfirmat 7x50', 'Mahkamlagich', 'dona'], ['Shkant (yog‘och mix)', 'Mahkamlagich', 'dona'], ['Samorez 3,5x16', 'Mahkamlagich', 'dona'], ['Ekssentrik styajka', 'Mahkamlagich', 'dona'], ['Burchak (ugolok)', 'Mahkamlagich', 'dona'], ['Mebel kleyi', 'Mahkamlagich', 'kg'],
+  ['Stoleshnitsa 38 mm', 'Stoleshnitsa', 'm'], ['Stoleshnitsa plintus', 'Stoleshnitsa', 'm'], ['Moyka (zanglamas)', 'Boshqa', 'dona'], ['Smesitel (kran)', 'Boshqa', 'dona'],
+  ['Ko‘zgu 4 mm', 'Oyna / ko‘zgu', 'm²'], ['Shisha 4 mm', 'Oyna / ko‘zgu', 'm²'], ['Lak', 'Bo‘yoq / lak', 'litr'], ['Silikon germetik', 'Boshqa', 'dona'],
+];
+A.starterMats = async () => {
+  if (!needWrite()) return;
+  const have = new Set(Store.data.materials.map((m) => (m.name || '').toLowerCase()));
+  const add = STARTER_MATS.filter(([n]) => !have.has(n.toLowerCase()));
+  if (!add.length) return toast('Hammasi allaqachon bor');
+  if (!(await confirmBox({ title: `Tayyor ro‘yxatdan ${add.length} ta material qo‘shilsinmi?`, text: 'LDSP, MDF, kromka, furnitura va boshqalar narxsiz qo‘shiladi. Narxini keyin har birining yonidagi «narx yo‘q» tugmasini bosib yozasiz. Keraksizini o‘chirib tashlaysiz.', ok: 'Qo‘shish' }))) return;
+  await guard(() => saveMany('materials', add.map(([name, cat, unit]) => ({ name, cat, unit, price: 0, min: 0 }))), `${add.length} ta material qo‘shildi`);
+};
+A.setPrice = (d) => {
+  const m = M.material.get(d.id); if (!m || !needWrite()) return;
+  openModal({
+    title: 'Narxni o‘zgartirish', body: `<p class="ink2"><b>${esc(m.name)}</b> · 1 ${esc(m.unit || 'dona')}</p>
+      <div class="fgrid">${field('Yangi narx', numInp('price', m.price || '', { suf: 'so‘m' }), { full: true, hint: m.price ? `Hozirgi narx: ${fmt(m.price)}${m.priceAt ? ' (' + dmy(m.priceAt) + ' dan)' : ''}` : 'Hozircha narx yozilmagan.' })}</div>`,
+    acts: `<button type="button" class="btn" data-act="closeTop">Bekor qilish</button><button type="submit" class="btn primary">${icon('check', 'sm')}Saqlash</button>`,
+    async onSubmit(f) {
+      const price = numVal(f, 'price');
+      return guard(async () => { await save('materials', { ...m, price, priceAt: M.today }); return true; }, 'Narx yangilandi');
+    },
+  });
+};
+
 /* ================= Web version: Supabase (login by name + password) =================
    The app talks to a small "db" object shaped like the artifact db, so the Store code stays the same.
    Every record is one row in public.records (kind, id, data). */
@@ -3985,7 +4130,9 @@ window.AvaldoWeb = (() => {
         try {
           if (!slug(name)) throw new Error('Ismni lotin harflarida yozing');
           const email = toEmail(name);
-          if (setup) {
+          const tryIn = setup ? await sb.auth.signInWithPassword({ email, password: pass }) : null;
+          if (setup && !(tryIn && tryIn.error)) { /* login made by hand in Supabase: init() makes it the owner */ }
+          else if (setup) {
             const { data, error } = await sb.auth.signUp({ email, password: pass });
             if (error) throw error;
             if (!data.session) throw new Error('Supabase\'da «Confirm email» yoqilgan. Uni o‘chiring.');
@@ -4023,7 +4170,16 @@ window.AvaldoWeb = (() => {
       ({ data: { session } } = await sb.auth.getSession());
     }
     uidNow = session.user.id;
-    const { data: me } = await sb.from('members').select('*').eq('user_id', uidNow).maybeSingle();
+    let { data: me } = await sb.from('members').select('*').eq('user_id', uidNow).maybeSingle();
+    if (!me) {
+      /* the owner login was made by hand in Supabase: the first such sign-in becomes the owner */
+      let none = false; try { none = (await sb.rpc('has_owner')).data === false; } catch (e) {}
+      if (none) {
+        const lg = slug(String(session.user.email || '').split('@')[0]) || 'egasi';
+        await sb.rpc('claim_owner', { p_login: lg, p_name: lg.charAt(0).toUpperCase() + lg.slice(1) });
+        ({ data: me } = await sb.from('members').select('*').eq('user_id', uidNow).maybeSingle());
+      }
+    }
     if (!me || me.role === 'off') { noAccess(me ? 'Sizning kirishingiz yopilgan.' : 'Sizga ruxsat berilmagan. Egasiga murojaat qiling.'); return; }
     member = me;
     Store.me = uidNow; Store.myName = me.name || me.login;
@@ -4062,12 +4218,8 @@ window.AvaldoWeb = (() => {
     </div></section>`;
   }
   async function newLogin(name, pass, workerId) {
-    const login = slug(name), email = toEmail(name);
-    const tmp = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'tmp-' + Date.now() } });
-    const { error } = await tmp.auth.signUp({ email, password: pass });
-    if (error && !/registered|exists/i.test(error.message)) throw error;
-    const { error: e2 } = await sb.rpc('adopt_login', { p_email: email, p_login: login, p_name: name.trim(), p_password: pass, p_worker: workerId || '' });
-    if (e2) throw e2;
+    const { error } = await sb.rpc('create_login', { p_login: slug(name), p_name: name.trim(), p_password: pass, p_role: 'worker' });
+    if (error) throw error;
   }
   const pwdFields = (label) => `<div class="fgrid">${field(label, `<input class="inp" name="pw" type="text" autocomplete="off" autocapitalize="none" minlength="6" required placeholder="Kamida 6 ta belgi">`, { full: true, req: true })}</div>`;
   const reload = async () => { await window.AvaldoWeb._refreshMembers(); changed(); };
