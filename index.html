@@ -569,6 +569,9 @@ body.boot .rail .nav,body.boot .tabbar,body.boot .tb-actions,body.boot .fab{visi
 .issue .is{font-size:12px;opacity:.7;margin-top:2px}
 .issue.done{background:var(--surface-2,rgba(128,128,128,.1));opacity:.8}
 .issue.done .ix{color:var(--accent)}
+.trow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line,#0001);cursor:pointer}
+.trow input{width:22px;height:22px;flex:none}
+.trow span{flex:1;min-width:0}
 
 </style>
 </head>
@@ -833,7 +836,7 @@ const oWhat = (o) => itemsOf(o).map((it) => (it.type || 'Buyum') + (it.title ? '
 function oProgress(o) { let n = 0, t = 0; for (const it of itemsOf(o)) { const x = itemInfo(o, it); n += x.n; t += x.total; } return { n, t, pct: t ? Math.round((n / t) * 100) : 0 }; }
 
 /* ================= Store (cloud db or this device) ================= */
-const ENTS = ['clients', 'orders', 'materials', 'suppliers', 'workers', 'purchases', 'jobs', 'partners'];
+const ENTS = ['clients', 'orders', 'materials', 'suppliers', 'workers', 'purchases', 'jobs', 'partners', 'davomat', 'kunlik'];
 const LOGS = ['tx', 'moves', 'work'];
 const ALL = ENTS.concat(LOGS);
 const SHAPES = {
@@ -867,15 +870,15 @@ const Local = {
 
 /* Ikki rol: egasi (hammasi) va ishchi (faqat buyurtmalar va sex; narx, to'lov, kassa, ish haqi ko'rinmaydi).
    Ishchi faqat shu to'plamlarni o'qiydi; qolganlari bazada ham faqat egasiga ochiq. */
-const W_ENTS = ['clients', 'orders', 'workers', 'jobs', 'partners'];
-const W_VIEWS = ['sex', 'buyurtmalar'];
+const W_ENTS = ['clients', 'orders', 'workers', 'jobs', 'partners', 'davomat', 'kunlik'];
+const W_VIEWS = ['ishxona', 'sex', 'buyurtmalar'];
 const isWorker = () => Store.role === 'worker';
 function setRole(r) {
   Store.role = r;
   try { localStorage.setItem('avaldo_role', r); } catch (e) {}
   document.body.classList.toggle('wk', r === 'worker');
   document.body.classList.remove('boot');
-  if (r === 'worker' && !W_VIEWS.includes(UI.view)) UI.view = 'sex';
+  if (r === 'worker' && !W_VIEWS.includes(UI.view)) UI.view = 'ishxona';
   changed();
 }
 async function initStore() {
@@ -1081,6 +1084,7 @@ const VIEWS = [
   { id: 'asosiy', name: 'Asosiy', icon: 'home' },
   { id: 'buyurtmalar', name: 'Buyurtmalar', icon: 'orders' },
   { id: 'sex', name: 'Ishlab chiqarish', short: 'Sex', icon: 'saw' },
+  { id: 'ishxona', name: 'Ishxona', icon: 'clock' },
   { id: 'hamkorlik', name: 'Hamkorlik', icon: 'brief' },
   { id: 'ombor', name: 'Ombor', icon: 'box' },
   { id: 'kassa', name: 'Kassa', icon: 'wallet' },
@@ -1155,7 +1159,7 @@ function renderView() {
 }
 function go(v, opts) {
   if (!VIEWS.some((x) => x.id === v)) v = 'asosiy';
-  if (isWorker() && !W_VIEWS.includes(v)) v = 'sex';
+  if (isWorker() && !W_VIEWS.includes(v)) v = 'ishxona';
   UI.view = v; UI.formDirty = false;
   if (opts) Object.assign(UI[v] || {}, opts);
   closeAll();
@@ -1613,10 +1617,10 @@ function itemBoxHTML(o, it) {
   const key = o.id + ':' + it.id;
   const open = key in UI.stepsOpen ? UI.stepsOpen[key] : ['kelishildi', 'ishlab', 'tayyor'].includes(o.stage);
   return `<div class="ibox">
-    <div class="ibox-h"><span class="pill st ${ph ? ph.cls : 's5'}">${esc(it.type || 'Buyum')}</span><div class="ibox-t">${esc(it.title || '')}${it.det ? ` <span class="muted" style="font-weight:500">· ${fmt(it.det)} ta detal</span>` : ''}</div>${it.joy === 'uy' ? '<span class="pill oak">mijoz uyida yig‘iladi</span>' : ''}${wk ? '' : `<span class="ibox-p">${N(it.price) ? som(it.price) : `<span class="muted" style="font-weight:500">${isJobRec(o) ? 'usta puli yo‘q' : 'narxsiz'}</span>`}</span>`}</div>
+    <div class="ibox-h"><span class="pill st ${ph ? ph.cls : 's5'}">${esc(it.type || 'Buyum')}</span><div class="ibox-t">${esc(it.title || '')}${it.det ? ` <span class="muted" style="font-weight:500">· ${fmt(it.det)} ta detal</span>` : ''}</div>${it.joy === 'uy' ? '<span class="pill oak">mijoz uyida yig‘iladi</span>' : ''}${wk ? '' : `<span class="ibox-p">${isJobRec(o) && N(it.proj) ? `<span class="muted" style="font-weight:500;font-size:12.5px">loyiha ${fmt(it.proj)}${o.pct ? ' · ' + fmt(o.pct) + '%' : ''} → </span>` : ''}${N(it.price) ? som(it.price) : `<span class="muted" style="font-weight:500">${isJobRec(o) ? 'usta puli yo‘q' : 'narxsiz'}</span>`}</span>`}</div>
     <div class="prog"><i style="width:${pct}%"></i></div>
     <div class="split"><span class="ink2" style="font-size:13.5px;min-width:0">${info.n}/${info.total} ish · ${info.cur ? `${ph.name}: <b>${esc(info.cur.short)}</b>` : '<b class="good-t">hammasi bajarildi</b>'}</span>
-      <div class="gap">${info.cur && canEdit ? `<button class="btn sm soft" data-act="stepDone" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w>${icon('check', 'sm')}${esc(info.cur.short)}</button>` : ''}${live && Store.canWrite ? issueBtn(o, it) : ''}${live && !wk ? `<button class="btn sm ghost icon" data-act="editItem" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w aria-label="Buyumni tahrirlash">${icon('edit', 'sm')}</button>` : ''}</div></div>
+      <div class="gap">${info.cur && canEdit ? `<button class="btn sm soft" data-act="stepDone" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w>${icon('check', 'sm')}${esc(info.cur.short)}</button>` : ''}${info.cur && canEdit ? phaseBtn(o, it, info) : ''}${live && Store.canWrite ? issueBtn(o, it) : ''}${live && !wk ? `<button class="btn sm ghost icon" data-act="editItem" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w aria-label="Buyumni tahrirlash">${icon('edit', 'sm')}</button>` : ''}</div></div>
     ${itemIssuesHTML(o, it)}
     <details class="steps" data-key="${esc(key)}" ${open ? 'open' : ''}><summary>Ishlar ro‘yxati · ${info.total} ta</summary>${stepListHTML(o, it, info, canEdit)}</details>
   </div>`;
@@ -1734,7 +1738,7 @@ Views.sex = () => {
       <div class="prog"><i style="width:${pct}%"></i></div>
       <div class="pr">${info.n}/${info.total} ish${it.joy === 'uy' ? ' · uyda yig‘iladi' : ''}</div>
       ${openIssuesIn(o, it) ? `<div class="pr warn-t">${icon('alert', 'sm')} ${openIssuesIn(o, it)} ta muammo</div>` : ''}
-      <div class="gap" style="margin-top:8px;flex-wrap:wrap">${btn}${Store.canWrite && ['kelishildi', 'ishlab', 'tayyor'].includes(o.stage) ? issueBtn(o, it) : ''}</div></div>`;
+      <div class="gap" style="margin-top:8px;flex-wrap:wrap">${btn}${info.cur ? phaseBtn(o, it, info) : ''}${Store.canWrite && ['kelishildi', 'ishlab', 'tayyor'].includes(o.stage) ? issueBtn(o, it) : ''}</div></div>`;
   };
   return roNote() + head + '<p class="muted">Har bir buyum o‘z ishlar ro‘yxati bilan yuradi. Tugmani bossangiz, o‘sha ish bajarildi deb belgilanadi. To‘liq ro‘yxat buyurtma ichida.</p>' +
     `<div class="board" data-keep="sex">${cols.map((c) => `<div class="col ${c.cls}"><div class="col-h"><span class="bar"></span><b>${c.name}</b><span class="c">${c.list.length}</span></div><div class="muted" style="font-size:12.5px;padding:0 6px">${c.hint}</div>${c.list.length ? c.list.map(card).join('') : '<div class="empty-col">Bo‘sh</div>'}</div>`).join('')}</div>`;
@@ -2184,6 +2188,7 @@ function itemRowHTML(it, types, { single = false, fee = false } = {}) {
       <div class="affix"><input class="inp num" name="i_price" data-num="int" inputmode="decimal" value="${N(it.price) ? fmt(it.price) : ''}" placeholder="${fee ? 'Usta puli' : 'Narxi'}" aria-label="${fee ? 'Usta puli' : 'Buyum narxi'}"><span class="suf">so‘m</span></div>
       ${single ? '' : `<button type="button" class="btn icon ghost" data-act="rmItemRow" aria-label="Buyumni olib tashlash">${icon('x', 'sm')}</button>`}
     </div>
+    ${fee ? `<div class="irow-proj"><div class="affix"><input class="inp num" name="i_proj" data-num="int" inputmode="decimal" value="${N(it.proj) ? fmt(it.proj) : ''}" placeholder="Shu buyum loyiha narxi (foiz uchun, ixtiyoriy)" aria-label="Loyiha narxi"><span class="suf">so‘m</span></div></div>` : ''}
     <div class="feats"><span class="lbl">Ishlar:</span>${FEATS.map(([id]) => featChip(id, f.has(id))).join('')}</div>
     <div class="irow-bot">${opts('i_joy_' + rid, [['sex', 'Sexda yig‘iladi'], ['uy', fee ? 'Joyida yig‘iladi' : 'Mijoz uyida yig‘iladi']], it.joy === 'uy' ? 'uy' : 'sex', { cls: 'sm' })}<span class="muted" style="font-size:12.5px" data-stepcount></span></div>
   </div>`;
@@ -2192,7 +2197,7 @@ function readItemRows(root, prev = []) {
   return $$('[data-irow]', root).map((row) => {
     const id = row.dataset.iid, old = prev.find((x) => x.id === id) || {};
     const joy = ($$('input[type=radio]', row).find((r) => r.checked) || {}).value === 'uy' ? 'uy' : 'sex';
-    return { ...old, id, type: $('select[name=i_type]', row).value, title: $('input[name=i_title]', row).value.trim(), price: N($('input[name=i_price]', row).value), feats: $$('.fchip.on', row).map((b) => b.dataset.f), joy, extra: old.extra || [], done: old.done || {} };
+    return { ...old, id, type: $('select[name=i_type]', row).value, title: $('input[name=i_title]', row).value.trim(), price: N($('input[name=i_price]', row).value), ...($('input[name=i_proj]', row) ? { proj: N($('input[name=i_proj]', row).value) || null } : {}), feats: $$('.fchip.on', row).map((b) => b.dataset.f), joy, extra: old.extra || [], done: old.done || {} };
   });
 }
 function showStepCounts(root, items) { $$('[data-irow]', root).forEach((row, i) => { const c = $('[data-stepcount]', row); if (c && items[i]) c.textContent = `${itemSteps(items[i]).length} ta ish qo‘shiladi`; }); }
@@ -2219,7 +2224,7 @@ A.rmItemRow = (d, el) => {
   el.closest('[data-irow]').remove(); f.dispatchEvent(new Event('input'));
 };
 /* keep derived order fields in step with its items */
-const normItem = (it) => { const x = { id: it.id || uid(), type: it.type || 'Boshqa', title: it.title || '', price: N(it.price), feats: (it.feats || []).slice(), joy: it.joy === 'uy' ? 'uy' : 'sex', extra: (it.extra || []).filter(Boolean), done: { ...(it.done || {}) } }; if (N(it.det)) x.det = N(it.det); return x; };
+const normItem = (it) => { const x = { id: it.id || uid(), type: it.type || 'Boshqa', title: it.title || '', price: N(it.price), feats: (it.feats || []).slice(), joy: it.joy === 'uy' ? 'uy' : 'sex', extra: (it.extra || []).filter(Boolean), done: { ...(it.done || {}) } }; if (N(it.det)) x.det = N(it.det); if (N(it.proj)) x.proj = N(it.proj); return x; };
 /* a Hamkorlik job: usta puli is the sum of its items, like an order's price */
 function normJob(rec) {
   fixJob(rec);
@@ -3667,9 +3672,10 @@ function jobForm(j, preset = {}) {
       ${field('Ish beruvchi nomi', textInp('np_name', '', 'Korxona yoki usta'), { req: true })}
       ${field('Telefon', textInp('np_phone', '', '+998 90 123 45 67', 'inputmode="tel"'))}
     </div>
+    ${field('Usta puli: loyiha narxidan foiz', numInp('pct', base.pct || '', { dec: true, suf: '%', ph: 'masalan 50' }), { full: true, hint: 'Ixtiyoriy. Foiz yozing va pastda har bir buyumga loyiha narxini kiriting: usta puli o‘zi hisoblanadi (10,000,000 × 50% = 5,000,000). Xohlasangiz usta pulini qo‘lda ham yozasiz.' })}
     <div class="field full"><label>Buyumlar <span class="req">*</span></label>
       <div class="items-ed" id="itemsEd" data-fee="1">${items.map((it) => itemRowHTML(it, types, { fee: true })).join('')}</div>
-      <div class="split"><button type="button" class="btn sm soft" data-act="addItemRow">${icon('plus', 'sm')}Yana buyum</button><b class="tnum" id="itemsTotal"></b></div>
+      <div class="split"><button type="button" class="btn sm soft" data-act="addItemRow">${icon('plus', 'sm')}Yana buyum qo‘shish (oshxona, shkaf, spalni…)</button><b class="tnum" id="itemsTotal"></b></div>
       <div class="hint">Har bir buyumga kelishilgan usta pulini yozing (bitta umumiy summa bo‘lsa — bittasiga yozing). Turiga qarab ishlar o‘zi qo‘shiladi, xuddi o‘z buyurtmangizdek; keraksizini bosib o‘chirasiz.</div></div>
     ${field('Topshirish muddati', dateInp('deadline', base.deadline))}
     ${field('Ish joyi', textInp('address', base.address, 'Qayerda yig‘iladi yoki o‘rnatiladi'))}
@@ -3691,6 +3697,16 @@ function jobForm(j, preset = {}) {
         form.elements.np_name.focus();
       });
       form.addEventListener('combo', (e) => { if (e.target.closest('[data-combo=partners]')) box.hidden = true; });
+      /* foiz: usta puli = loyiha narxi × foiz / 100 */
+      form.addEventListener('input', (e) => {
+        const nm = e.target && e.target.name; if (nm !== 'i_proj' && nm !== 'pct') return;
+        const pct = N(form.elements.pct && form.elements.pct.value); if (!(pct > 0)) return;
+        $$('[data-irow]', form).forEach((row) => {
+          const proj = N($('input[name=i_proj]', row).value), fee = $('input[name=i_price]', row);
+          if (proj > 0) fee.value = fmt(Math.round((proj * pct) / 100));
+        });
+        form.dispatchEvent(new Event('input'));
+      });
     },
     onInput(form) {
       syncCur(form);
@@ -3708,6 +3724,7 @@ function jobForm(j, preset = {}) {
         const rec = isNew ? { no: nextNo(Store.data.jobs), createdAt: M.today, stage: val(form, 'stage') || 'kelishildi', history: [] } : { ...base, history: (base.history || []).slice() };
         const oldFee = N(base.fee), oldDeadline = base.deadline || '';
         rec.items = its;
+        rec.pct = numVal(form, 'pct') > 0 ? numVal(form, 'pct') : null;
         Object.assign(rec, { partnerId, deadline: val(form, 'deadline') || null, address: String(val(form, 'address')).trim(), note: String(val(form, 'note')).trim() });
         normJob(rec);
         if (isNew) { addHist(rec, `Ish ochildi (${stageOf(rec.stage).name}): ${rec.items.map(itemLabel).join(', ')}${rec.fee ? ' · usta puli ' + som(rec.fee) : ''}`); if (rec.stage === 'kelishildi') rec.agreedAt = M.today; }
@@ -3977,6 +3994,25 @@ function issuesReportHTML() {
 }
 const openIssuesIn = (o, it) => issuesOf(o).filter((i) => i.item === it.id && !i.res).length;
 
+/* one tap: the whole phase (e.g. Hisob-kitob) is done, the item moves on to the next phase */
+const phaseLeft = (info) => (info.cur ? info.left.filter((s) => s.ph === info.cur.ph) : []);
+const phaseBtn = (o, it, info) => (phaseLeft(info).length > 1 && Store.canWrite ? `<button class="btn sm ghost" data-act="phaseDone" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w>${icon('check', 'sm')}${esc(PHASES[info.cur.ph].name)} tugadi</button>` : '');
+A.phaseDone = async (d) => {
+  const o = unitGet(d); if (!o || !needWrite()) return;
+  const it0 = itemsOf(o).find((x) => x.id === d.item) || itemsOf(o)[0];
+  const info = itemInfo(o, it0), todo = phaseLeft(info);
+  if (!todo.length) return;
+  if (!(await confirmBox({ title: `${PHASES[info.cur.ph].name} tugadimi?`, text: `Qolgan ${todo.length} ta ish bajarildi deb belgilanadi:\n${todo.map((s) => s.short).join(', ')}`, ok: 'Ha, tugadi' }))) return;
+  await guard(async () => {
+    const rec = cloneUnit(o), it = rec.items.find((x) => x.id === it0.id);
+    for (const s of todo) it.done[s.id] = { d: M.today, w: null };
+    addHist(rec, `${it.type}: ${PHASES[info.cur.ph].name} tugadi`);
+    syncStage(rec);
+    await save(unitCol(o), rec);
+    return true;
+  }, `${PHASES[info.cur.ph].name} tugadi`);
+};
+
 /* ================= Xomashyo bazasi: tayyor ro'yxat va narxni tez o'zgartirish ================= */
 const STARTER_MATS = [
   ['LDSP 16 mm Oq', 'LDSP', 'list'], ['LDSP 16 mm Venge', 'LDSP', 'list'], ['LDSP 16 mm Dub sonoma', 'LDSP', 'list'], ['LDSP 16 mm Orex', 'LDSP', 'list'], ['LDSP 16 mm Kulrang', 'LDSP', 'list'],
@@ -4012,6 +4048,163 @@ A.setPrice = (d) => {
   });
 };
 
+/* ================= Ishxona: davomat + kunlik ishlar ================= */
+const nowHM = () => new Date().toTimeString().slice(0, 5);
+const hmMin = (s) => { const m = /^(\d{1,2}):(\d{2})$/.exec(s || ''); return m ? +m[1] * 60 + +m[2] : null; };
+const hoursTxt = (a, b) => { const x = hmMin(a), y = hmMin(b); if (x == null || y == null || y < x) return ''; const t = y - x; return `${Math.floor(t / 60)} s ${String(t % 60).padStart(2, '0')} daq`; };
+const myAttId = () => M.today + '_' + (Store.me || 'local');
+const attOf = (date) => Store.data.davomat.filter((a) => a.date === date).sort(by((a) => a.in || ''));
+const dayTasks = (date) => { const k = Store.data.kunlik.find((x) => x.id === date); return k && Array.isArray(k.tasks) ? k.tasks : []; };
+const doneToday = () => {
+  const out = [];
+  for (const x of prodItems()) for (const s of x.info.steps) { const dn = (x.it.done || {})[s.id]; if (dn && dn.d === M.today) out.push({ o: x.o, it: x.it, s, job: x.job }); }
+  return out;
+};
+Titles.ishxona = () => { const n = attOf(M.today).filter((a) => a.in && !a.out).length; return ['Ishxona', `Bugun ${attOf(M.today).length} kishi keldi · hozir ${n} kishi ishda`]; };
+
+Views.ishxona = () => {
+  if (!Store.ready) return skeleton();
+  const wk = isWorker(), today0 = M.today;
+  const mine = Store.data.davomat.find((a) => a.id === myAttId());
+  let att;
+  if (!mine) att = `<div class="callout oak">${icon('clock')}<div class="grow"><b>Xush kelibsiz${Store.myName ? ', ' + esc(Store.myName) : ''}!</b><br>Ishxonaga kelganingizda bosing.</div><button class="btn primary" data-act="keldim" data-w>${icon('check', 'sm')}Keldim</button></div>`;
+  else if (!mine.out) att = `<div class="callout oak">${icon('clock')}<div class="grow"><b>Keldingiz: ${esc(mine.in)}</b><br>Ketayotganda «Ketdim» ni bosing.</div><button class="btn" data-act="ketdim" data-w>${icon('out', 'sm')}Ketdim</button></div>`;
+  else att = `<div class="callout">${icon('check')}<div class="grow"><b>Bugun: ${esc(mine.in)} – ${esc(mine.out)}</b> ${hoursTxt(mine.in, mine.out) ? '· ' + hoursTxt(mine.in, mine.out) : ''}</div></div>`;
+
+  /* what is on the bench now: each live item's next job */
+  const live = prodItems().filter((x) => x.info.cur).sort(by((x) => (x.o.deadline || '9999-99-99') + String(x.o.no).padStart(6, '0')));
+  const mainPh = ['hisob', 'sex'];
+  const mineList = live.filter((x) => mainPh.includes(x.info.cur.ph)), other = live.filter((x) => !mainPh.includes(x.info.cur.ph));
+  const row = ({ o, it, info, job }) => `<div class="ocard pcard"><div class="top" data-act="${job ? 'openJob' : 'openOrder'}" data-id="${o.id}" role="button" tabindex="0"><span class="no">${unitNo(o)}</span><span class="pill st ${PHASES[info.cur.ph].cls}" style="height:22px">${esc(it.type)}</span><span style="margin-left:auto">${deadlineChip(o)}</span></div>
+    <div class="nm">${esc(unitWho(o) || it.title || it.type)}</div>
+    <div class="pr"><b>Navbatdagi ish:</b> ${esc(info.cur.name)} · ${info.n}/${info.total}</div>
+    ${openIssuesIn(o, it) ? `<div class="pr warn-t">${icon('alert', 'sm')} ${openIssuesIn(o, it)} ta muammo</div>` : ''}
+    <div class="gap" style="margin-top:8px;flex-wrap:wrap"><button class="btn sm soft" data-act="stepDone" data-id="${o.id}"${kAttr(o)} data-item="${esc(it.id)}" data-w>${icon('check', 'sm')}${esc(info.cur.short)}</button>${phaseBtn(o, it, info)}${issueBtn(o, it)}</div></div>`;
+  const tasks = dayTasks(today0);
+  const taskRow = (t) => `<label class="trow"><input type="checkbox" data-act="taskTick" data-tid="${t.id}" ${t.done ? 'checked' : ''} ${Store.canWrite ? '' : 'disabled'}><span class="${t.done ? 'muted' : ''}" style="${t.done ? 'text-decoration:line-through' : ''}">${esc(t.text)}${t.by ? ` <i class="muted">· ${esc(t.by)}</i>` : ''}</span>${Store.canWrite ? `<button type="button" class="btn sm ghost" data-act="taskDel" data-tid="${t.id}" aria-label="O‘chirish">${icon('x', 'sm')}</button>` : ''}</label>`;
+  const dn = doneToday();
+  let html = roNote() + att;
+  html += `<div class="sumrow"><div><div class="k">Bugun qilinadigan</div><div class="v">${mineList.length}</div></div><div><div class="k">Bugun bajarilgan ish</div><div class="v good-t">${dn.length}</div></div>${openIssueCount() ? `<div><div class="k">Ochiq muammo</div><div class="v warn-t">${openIssueCount()}</div></div>` : ''}</div>`;
+  html += `<div class="sec-h" style="margin-top:18px"><h2>Bugungi ishlar</h2></div>`;
+  html += mineList.length ? `<div class="stack">${mineList.map(row).join('')}</div>` : emptyBox('check', 'Hozircha ish yo‘q', 'Yangi buyurtma «Qabul qilindi» bo‘lsa, uning ishlari shu yerda paydo bo‘ladi.');
+  html += `<div class="sec-h" style="margin-top:18px"><h2>Qo‘shimcha topshiriqlar</h2></div><div class="card" style="padding:10px 14px">${tasks.length ? tasks.map(taskRow).join('') : '<p class="muted" style="margin:6px 0">Hali topshiriq yo‘q</p>'}<div style="margin-top:8px"><button class="btn sm" data-act="taskAdd" data-w>${icon('plus', 'sm')}Topshiriq qo‘shish</button></div></div>`;
+  if (dn.length) html += `<div class="sec-h" style="margin-top:18px"><h2>Bugun bajarilgan</h2></div><div class="card" style="padding:10px 14px">${dn.map((x) => `<div class="pr" style="margin:4px 0">${icon('check', 'sm')} ${unitNo(x.o)} · ${esc(x.it.type)} — ${esc(x.s.short)}</div>`).join('')}</div>`;
+  if (other.length) html += `<div class="sec-h" style="margin-top:18px"><h2>Boshqa jarayonda (usluga, uy)</h2></div><div class="card" style="padding:10px 14px">${other.map((x) => `<div class="pr" style="margin:4px 0">${unitNo(x.o)} · ${esc(x.it.type)} — ${esc(x.info.cur.name)}</div>`).join('')}</div>`;
+  /* owner: attendance table */
+  if (!wk) {
+    const days = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(today0 + 'T12:00:00'); d.setDate(d.getDate() - i); days.push(d.toISOString().slice(0, 10)); }
+    const rows = days.flatMap((d) => attOf(d).map((a) => `<tr data-act="editAtt" data-id="${a.id}"><td>${dmy(d).slice(0, 5)}</td><td><b>${esc(a.name || '—')}</b></td><td class="tnum">${esc(a.in || '—')}</td><td class="tnum">${a.out ? esc(a.out) : '<span class="warn-t">ishda</span>'}</td><td class="r hide-sm">${hoursTxt(a.in, a.out)}</td></tr>`));
+    html += `<div class="sec-h" style="margin-top:18px"><h2>Davomat (oxirgi 7 kun)</h2></div>` + (rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Sana</th><th>Ishchi</th><th>Keldi</th><th>Ketdi</th><th class="r hide-sm">Ishladi</th></tr></thead><tbody>${rows.join('')}</tbody></table></div><p class="muted" style="font-size:12.5px">Qatorni bossangiz vaqtni to‘g‘rilashingiz mumkin.</p>` : '<p class="muted">Hali davomat yo‘q. Ishchilar «Keldim» tugmasini bosganda shu yerda ko‘rinadi.</p>');
+  }
+  return html;
+};
+
+A.keldim = async () => {
+  if (!needWrite()) return;
+  if (Store.data.davomat.some((a) => a.id === myAttId())) return;
+  await guard(() => save('davomat', { id: myAttId(), date: M.today, uid: Store.me || 'local', name: Store.myName || (isWorker() ? 'Ishchi' : 'Egasi'), in: nowHM(), out: null }), 'Keldingiz: ' + nowHM());
+};
+A.ketdim = async () => {
+  if (!needWrite()) return;
+  const a = Store.data.davomat.find((x) => x.id === myAttId()); if (!a || a.out) return;
+  if (!(await confirmBox({ title: 'Ketyapsizmi?', text: 'Bugungi kun yopiladi. Hamma ishlarni belgilab bo‘ldingizmi?', ok: 'Ha, ketdim' }))) return;
+  await guard(() => save('davomat', { ...a, out: nowHM() }), 'Xayr! Ketdingiz: ' + nowHM());
+};
+A.editAtt = (d) => {
+  const a = Store.data.davomat.find((x) => x.id === d.id); if (!a || isWorker() || !needWrite()) return;
+  openModal({
+    title: `Davomat · ${esc(a.name || '')} · ${dmy(a.date)}`,
+    body: `<div class="fgrid">${field('Keldi', '<input class="inp" type="time" name="tin" value="' + esc(a.in || '') + '">')}${field('Ketdi', '<input class="inp" type="time" name="tout" value="' + esc(a.out || '') + '">', { hint: 'Ketmagan bo‘lsa bo‘sh qoldiring' })}</div>`,
+    acts: `<button type="button" class="btn danger" data-act="delAtt" data-id="${a.id}">${icon('trash', 'sm')}O‘chirish</button><button type="button" class="btn" data-act="closeTop">Bekor qilish</button><button type="submit" class="btn primary">Saqlash</button>`,
+    async onSubmit(f) { return guard(async () => { await save('davomat', { ...a, in: val(f, 'tin') || a.in, out: val(f, 'tout') || null }); return true; }, 'Saqlandi'); },
+  });
+};
+A.delAtt = async (d) => {
+  const a = Store.data.davomat.find((x) => x.id === d.id); if (!a || !needWrite()) return;
+  if (!(await confirmBox({ title: 'Davomat yozuvi o‘chirilsinmi?', text: `${a.name || ''} · ${dmy(a.date)}`, ok: 'O‘chirish', danger: true }))) return;
+  await guard(async () => { await remove('davomat', a); closeAll(); return true; }, 'O‘chirildi');
+};
+async function saveTasks(mut) {
+  const cur = Store.data.kunlik.find((x) => x.id === M.today) || { id: M.today, date: M.today, tasks: [] };
+  await save('kunlik', { ...cur, date: M.today, tasks: mut(dayTasks(M.today).map((t) => ({ ...t }))) });
+}
+A.taskAdd = () => {
+  if (!needWrite()) return;
+  openModal({
+    title: 'Topshiriq', body: `<div class="fgrid">${field('Nima qilish kerak?', textInp('text', '', 'Masalan: Kromka qoldig‘ini yig‘ish'), { full: true, req: true })}</div>`,
+    acts: `<button type="button" class="btn" data-act="closeTop">Bekor qilish</button><button type="submit" class="btn primary">${icon('plus', 'sm')}Qo‘shish</button>`,
+    async onSubmit(f) {
+      const text = String(val(f, 'text')).trim(); if (!text) return false;
+      return guard(async () => { await saveTasks((l) => l.concat([{ id: uid(), text, done: false, by: Store.myName || (isWorker() ? 'Ishchi' : 'Egasi') }])); return true; }, 'Qo‘shildi');
+    },
+  });
+};
+A.taskTick = async (d) => { if (!needWrite()) return; await guard(() => saveTasks((l) => l.map((t) => (t.id === d.tid ? { ...t, done: !t.done, doneAt: !t.done ? nowHM() : null } : t)))); };
+A.taskDel = async (d) => { if (!needWrite()) return; await guard(() => saveTasks((l) => l.filter((t) => t.id !== d.tid))); };
+
+/* ================= Avaldo HR: narxsiz nusxa ishchilar uchun =================
+   CRM (egasi) har bir faol buyurtma va hamkorlik ishining NARXSIZ nusxasini «hr_units» ga yozadi.
+   Ishchilar faqat shuni ko‘radi (Avaldo HR). Ular belgilagan ishlar va muammolar CRM ga qaytib qo‘shiladi. */
+const HR_UNIT_KEYS = ['k', 'no', 'stage', 'deadline', 'address', 'details', 'who', 'items', 'issues', 'startedAt', 'readyAt'];
+const HR_ITEM_KEYS = ['id', 'type', 'title', 'feats', 'joy', 'extra', 'done', 'det'];
+const HR_LIVE = ['kelishildi', 'ishlab', 'tayyor'];
+function hrClean(rec, k) {
+  const out = { k };
+  for (const key of HR_UNIT_KEYS) if (rec[key] !== undefined && rec[key] !== null && key !== 'k') out[key] = rec[key];
+  out.items = (Array.isArray(rec.items) ? rec.items : []).map((it) => { const c = {}; for (const key of HR_ITEM_KEYS) if (it[key] !== undefined) c[key] = it[key]; return c; });
+  out.issues = Array.isArray(rec.issues) ? rec.issues : [];
+  return out;
+}
+const hrPrefix = (isJob) => (isJob ? 'j:' : 'o:');
+
+if (!window.AVALDO_HR) {
+  const hrState = { sig: {}, busy: false, timer: null };
+  const hrActive = () => !!(window.AvaldoWeb && Store.mode === 'cloud' && Store.ready && !isWorker() && Store.canWrite && Store.db);
+  const hrUnits = () => Store.data.orders.map((o) => [o, false]).concat(Store.data.jobs.map((j) => [j, true])).filter(([u]) => HR_LIVE.includes(u.stage));
+  const hrBuild = (u, isJob) => { const c = hrClean({ ...u, who: (isJob ? jWho(u) : oWho(u)) || '' }, isJob ? 'job' : 'order'); c.who = String(c.who || '').slice(0, 80); return c; };
+  async function hrSync() {
+    if (hrState.busy || !hrActive()) return;
+    hrState.busy = true;
+    try {
+      const col = Store.db.collection('hr_units');
+      const cur = window.AvaldoWeb.peek('hr_units');
+      const live = new Set();
+      for (const [u, isJob] of hrUnits()) {
+        const rid = hrPrefix(isJob) + u.id; live.add(rid);
+        const mine = hrBuild(u, isJob), sig = JSON.stringify(mine), t = cur.get(rid);
+        const first = hrState.sig[rid] === undefined;
+        if (t && (first || hrState.sig[rid] === sig)) {
+          /* ishchilar belgilaganini CRM ga qo‘shamiz */
+          const rec = cloneUnit(u); let dirty = false;
+          for (const ti of t.items || []) {
+            const it = rec.items.find((x) => x.id === ti.id); if (!it) continue;
+            it.done = it.done || {};
+            for (const [sid, v] of Object.entries(ti.done || {})) if (!it.done[sid]) { it.done[sid] = v; dirty = true; }
+          }
+          const iss = issuesOf(rec).slice();
+          for (const ti of t.issues || []) {
+            const oi = iss.findIndex((x) => x.id === ti.id);
+            if (oi < 0) { iss.push(ti); dirty = true; } else if (!iss[oi].res && ti.res) { iss[oi] = ti; dirty = true; }
+          }
+          if (dirty) {
+            rec.issues = iss; syncStage(rec);
+            await save(unitCol(u), rec);
+            continue; /* o‘zgarish yangi aylanishda HR ga ketadi */
+          }
+        }
+        if (!t || JSON.stringify(t) !== sig) await col.doc(rid).set(mine);
+        hrState.sig[rid] = sig;
+      }
+      for (const rid of [...cur.keys()]) if (!live.has(rid)) { await col.doc(rid).delete(); delete hrState.sig[rid]; }
+    } catch (e) { console.error('hr sync', e); }
+    hrState.busy = false;
+  }
+  const hrSchedule = () => { if (!hrActive()) return; clearTimeout(hrState.timer); hrState.timer = setTimeout(hrSync, 1500); };
+  const _changed0 = changed;
+  changed = function () { _changed0(); hrSchedule(); };
+}
+
 /* ================= Web version: Supabase (login by name + password) =================
    The app talks to a small "db" object shaped like the artifact db, so the Store code stays the same.
    Every record is one row in public.records (kind, id, data). */
@@ -4022,6 +4215,9 @@ window.AvaldoWeb = (() => {
   let sb = null, uidNow = null, member = null, members = [], loaded = false;
   const cache = {}, subs = {};
   const LOGK = ['tx', 'moves', 'work'];
+  const HR = !!window.AVALDO_HR;
+  const BRAND = HR ? 'Avaldo HR' : 'avaldo.crm';
+  const VIRT = ['orders', 'jobs', 'clients', 'partners'];
 
   const slug = (s) => String(s || '').trim().toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[‘’ʻʼ'`´]/g, '').replace(/[^a-z0-9._-]/g, '');
   const toEmail = (name) => slug(name) + DOMAIN;
@@ -4030,6 +4226,17 @@ window.AvaldoWeb = (() => {
 
   /* ---------- snapshots for the Store code ---------- */
   function snapshot(kind) {
+    if (HR && VIRT.includes(kind)) {
+      const docs = [];
+      for (const [rid, v] of kindMap('hr_units')) {
+        const id = rid.slice(2), isJob = rid.startsWith('j:');
+        if (kind === 'orders' && !isJob) docs.push({ exists: true, id, data: () => ({ ...v, clientId: 'c:' + id }) });
+        if (kind === 'jobs' && isJob) docs.push({ exists: true, id, data: () => ({ ...v, partnerId: 'p:' + id }) });
+        if (kind === 'clients' && !isJob) docs.push({ exists: true, id: 'c:' + id, data: () => ({ name: v.who || '' }) });
+        if (kind === 'partners' && isJob) docs.push({ exists: true, id: 'p:' + id, data: () => ({ name: v.who || '' }) });
+      }
+      return { docs };
+    }
     const m = kindMap(kind);
     if (kind === 'meta') { const s = m.get('settings'); return { exists: !!s, data: () => s || {} }; }
     if (LOGK.includes(kind)) {
@@ -4039,7 +4246,7 @@ window.AvaldoWeb = (() => {
     }
     return { docs: [...m].map(([id, v]) => ({ exists: true, id, data: () => v })) };
   }
-  function emit(kind) { for (const cb of subs[kind] || []) { try { cb(snapshot(kind)); } catch (e) { console.error(e); } } }
+  function emit(kind) { if (HR && kind === 'hr_units') for (const v of VIRT) emit(v); for (const cb of subs[kind] || []) { try { cb(snapshot(kind)); } catch (e) { console.error(e); } } }
   const emitAll = () => { for (const k of Object.keys(subs)) emit(k); };
   function sub(kind, cb) { (subs[kind] = subs[kind] || []).push(cb); if (loaded) Promise.resolve().then(() => cb(snapshot(kind))); }
 
@@ -4062,6 +4269,10 @@ window.AvaldoWeb = (() => {
   }
   const clean = (o) => { const r = {}; for (const [k, v] of Object.entries(o || {})) if (v !== undefined) r[k] = v; return r; };
   function ref(kind, id) {
+    if (HR && (kind === 'orders' || kind === 'jobs')) {
+      const real = ref('hr_units', (kind === 'orders' ? 'o:' : 'j:') + id), k = kind === 'orders' ? 'order' : 'job';
+      return { ...real, set: (b) => real.set(hrClean(b, k)), update: (b) => real.set(hrClean({ ...(kindMap('hr_units').get((kind === 'orders' ? 'o:' : 'j:') + id) || {}), ...b }, k)), onSnapshot: (cb) => sub(kind, cb) };
+    }
     return {
       async set(body) {
         if (LOGK.includes(kind)) return this.update(body);
@@ -4114,7 +4325,7 @@ window.AvaldoWeb = (() => {
   }
   const hideScreen = () => { const el = document.getElementById('authScr'); if (el) el.remove(); };
   const head = (t, s) => `<div style="text-align:center;margin-bottom:22px"><div style="width:64px;height:64px;border-radius:16px;background:var(--accent);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;color:#fff;font:700 28px 'Bricolage Grotesque',sans-serif">A</div><div style="font:700 22px 'Bricolage Grotesque',sans-serif">${t}</div><div class="muted" style="margin-top:4px;font-size:14px">${s}</div></div>`;
-  const loginForm = (setup) => `${head('avaldo.crm', setup ? 'Birinchi marta: egasi akkauntini yarating' : 'Kirish')}
+  const loginForm = (setup) => `${head(BRAND, setup ? 'Birinchi marta: egasi akkauntini yarating' : 'Kirish')}
     <form id="authF" class="stack" style="gap:12px" autocomplete="on">
       <div class="field"><label>Ism</label><input class="inp" name="u" autocomplete="username" autocapitalize="none" autocorrect="off" required placeholder="Masalan: Avaldo"></div>
       <div class="field"><label>Parol</label><input class="inp" type="password" name="p" autocomplete="${setup ? 'new-password' : 'current-password'}" required minlength="6" placeholder="Kamida 6 ta belgi"></div>
@@ -4148,7 +4359,7 @@ window.AvaldoWeb = (() => {
     });
   }
   function noAccess(msg) {
-    const el = screen(`${head('avaldo.crm', msg)}<button class="btn" id="outB" style="width:100%;justify-content:center">Chiqish</button>`);
+    const el = screen(`${head(BRAND, msg)}<button class="btn" id="outB" style="width:100%;justify-content:center">Chiqish</button>`);
     el.querySelector('#outB').onclick = logout;
   }
   async function logout() {
@@ -4159,7 +4370,7 @@ window.AvaldoWeb = (() => {
 
   /* ---------- start ---------- */
   async function init() {
-    if (!CFG.url || !CFG.key || !window.supabase) { screen(head('avaldo.crm', 'Sozlanmagan: config.js ichiga Supabase URL va kalit yozilmagan.')); return; }
+    if (!CFG.url || !CFG.key || !window.supabase) { screen(head(BRAND, 'Sozlanmagan: config.js ichiga Supabase URL va kalit yozilmagan.')); return; }
     sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true } });
     Store.dl = { save: async ({ filename, data }) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' })); a.download = filename; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); } };
     let { data: { session } } = await sb.auth.getSession();
@@ -4180,6 +4391,7 @@ window.AvaldoWeb = (() => {
         ({ data: me } = await sb.from('members').select('*').eq('user_id', uidNow).maybeSingle());
       }
     }
+    if (me && me.role === 'worker' && !HR) { noAccess('Ishchilar uchun alohida dastur bor: Avaldo HR. Egasidan havolasini so‘rang.'); return; }
     if (!me || me.role === 'off') { noAccess(me ? 'Sizning kirishingiz yopilgan.' : 'Sizga ruxsat berilmagan. Egasiga murojaat qiling.'); return; }
     member = me;
     Store.me = uidNow; Store.myName = me.name || me.login;
@@ -4187,22 +4399,23 @@ window.AvaldoWeb = (() => {
     const refreshMembers = async () => { const { data } = await sb.from('members').select('*'); members = data || []; for (const m of members) names[m.user_id] = m.name || m.login; };
     await refreshMembers();
     Store.user = { profiles: async (ids) => Object.fromEntries(ids.map((i) => [i, { name: names[i] }])), id: async () => uidNow, isOwner: async () => me.role === 'owner' };
-    setRole(me.role === 'owner' ? 'owner' : 'worker');
+    setRole(HR || me.role !== 'owner' ? 'worker' : 'owner');
     window.AvaldoWeb._refreshMembers = refreshMembers;
     Store.mode = 'cloud'; Store.db = db;
-    const own = me.role === 'owner';
+    const own = me.role === 'owner' && !HR;
     const need = ALL.length + 1;
     const mark = (k) => { Store.loaded.add(k); if (!Store.ready && Store.loaded.size >= need) Store.ready = true; changed(); };
-    const ents = own ? ENTS : W_ENTS, logs = own ? LOGS : [];
+    const ents = own ? ENTS : (HR ? ['orders', 'jobs', 'clients', 'partners', 'davomat', 'kunlik'] : W_ENTS), logs = own ? LOGS : [];
     for (const k of ALL) if (!ents.includes(k) && !logs.includes(k)) Store.loaded.add(k);
     for (const name of ents) db.collection(name).onSnapshot((snap) => { Store.data[name] = snap.docs.map((d) => ({ ...d.data(), id: d.id })); mark(name); });
     for (const name of logs) db.collection(name).onSnapshot((snap) => {
       const out = []; for (const d of snap.docs) { const items = d.data().items; for (const k of Object.keys(items)) if (items[k] && typeof items[k] === 'object') out.push({ ...items[k], id: k, _b: d.id }); }
       Store.data[name] = out; mark(name);
     });
-    db.doc('meta/settings').onSnapshot((s) => { Store.settings = { ...DEF_SETTINGS, ...(s.exists ? s.data() : {}) }; mark('settings'); });
+    if (HR) mark('settings'); else db.doc('meta/settings').onSnapshot((s) => { Store.settings = { ...DEF_SETTINGS, ...(s.exists ? s.data() : {}) }; mark('settings'); });
     try { await loadAll(); } catch (e) { console.error(e); toast('Ma’lumotni yuklab bo‘lmadi', true); Store.ready = true; changed(); }
     hideScreen(); listen();
+    if (!HR && own) db.collection('hr_units').onSnapshot(() => changed());
   }
 
   /* ---------- worker accounts (owner) ---------- */
@@ -4285,7 +4498,7 @@ window.AvaldoWeb = (() => {
     inp.click();
   };
 
-  return { init, workersCard, _refreshMembers: async () => {} };
+  return { init, workersCard, peek: (k) => kindMap(k), _refreshMembers: async () => {} };
 })();
 
 /* ================= Boot ================= */
@@ -4298,7 +4511,7 @@ window.addEventListener('hashchange', () => { const h = location.hash.replace('#
   if (VIEWS.some((v) => v.id === h)) UI.view = h;
   /* the role remembered on this device shows the right tabs at once; on a first visit the tabs wait for it */
   let r0 = null; try { r0 = localStorage.getItem('avaldo_role'); } catch (e) {}
-  if (r0 === 'worker') { Store.role = 'worker'; document.body.classList.add('wk'); if (!W_VIEWS.includes(UI.view)) UI.view = 'sex'; }
+  if (r0 === 'worker') { Store.role = 'worker'; document.body.classList.add('wk'); if (!W_VIEWS.includes(UI.view)) UI.view = 'ishxona'; }
   else if (!r0 && window.claude) { document.body.classList.add('boot'); setTimeout(() => document.body.classList.remove('boot'), 12000); }
   compute();
   renderAll();
